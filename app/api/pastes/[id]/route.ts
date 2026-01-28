@@ -1,0 +1,63 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getPaste, incrementViewCount } from '@/lib/kv';
+import { isPasteAvailable } from '@/lib/utils';
+import { getTestTime } from '@/lib/request-utils';
+import type { GetPasteResponse, ErrorResponse } from '@/lib/types';
+
+const NOT_FOUND_RESPONSE = NextResponse.json<ErrorResponse>(
+  { error: 'Paste not found' },
+  { status: 404 }
+);
+
+function calculateExpiresAt(paste: { createdAt: number; ttlSeconds: number | null }): string | null {
+  if (!paste.ttlSeconds) {
+    return null;
+  }
+  return new Date(paste.createdAt + paste.ttlSeconds * 1000).toISOString();
+}
+
+function calculateRemainingViews(paste: { maxViews: number | null; viewCount: number }): number | null {
+  if (paste.maxViews === null) {
+    return null;
+  }
+  return Math.max(0, paste.maxViews - paste.viewCount);
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse<GetPasteResponse | ErrorResponse>> {
+  try {
+    const { id } = params;
+    const currentTime = getTestTime(request);
+    
+    const paste = await getPaste(id, currentTime);
+
+    if (!paste) {
+      return NOT_FOUND_RESPONSE;
+    }
+
+    if (!isPasteAvailable(paste, currentTime)) {
+      return NOT_FOUND_RESPONSE;
+    }
+
+    await incrementViewCount(id, currentTime);
+
+    const updatedPaste = await getPaste(id, currentTime);
+    if (!updatedPaste) {
+      return NOT_FOUND_RESPONSE;
+    }
+
+    return NextResponse.json<GetPasteResponse>({
+      content: updatedPaste.content,
+      remaining_views: calculateRemainingViews(updatedPaste),
+      expires_at: calculateExpiresAt(updatedPaste),
+    }, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching paste:', error);
+    return NextResponse.json<ErrorResponse>(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
