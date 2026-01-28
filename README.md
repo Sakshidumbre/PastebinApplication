@@ -127,17 +127,21 @@ x-test-now-ms: 1704067200000
 
 ## Design Decisions
 
-1. **View Counting**: Both API requests (`GET /api/pastes/:id`) and HTML page views (`GET /p/:id`) increment the view count to properly enforce `max_views` constraints.
+1. **View Counting**: Both API requests (`GET /api/pastes/:id`) and HTML page views (`GET /p/:id`) increment the view count to properly enforce `max_views` constraints. The availability check happens before incrementing to prevent counting views for unavailable pastes.
 
 2. **ID Generation**: Simple 8-character alphanumeric IDs are used. For production, you might want longer IDs or UUIDs for better collision resistance.
 
-3. **Error Handling**: All errors return appropriate HTTP status codes (4xx for client errors, 404 for unavailable pastes, 500 for server errors) with JSON error bodies.
+3. **Error Handling**: All errors return appropriate HTTP status codes (4xx for client errors, 404 for unavailable pastes, 500 for server errors) with JSON error bodies. Unavailable pastes (expired, max views reached, or not found) all return consistent 404 responses.
 
-4. **HTML Escaping**: All paste content is escaped when rendered in HTML to prevent XSS attacks.
+4. **HTML Escaping**: All paste content is escaped when rendered in HTML to prevent XSS attacks. The `escapeHtml` function handles all HTML special characters.
 
-5. **Constraint Checking**: Both TTL and view count constraints are checked before and after incrementing view count to ensure atomicity.
+5. **Constraint Checking**: Both TTL and view count constraints are checked before incrementing view count. If either constraint is violated, the paste returns 404. The check happens atomically to prevent race conditions.
 
-6. **Base URL Detection**: The application automatically detects the base URL from request headers (`x-forwarded-proto` and `host`) to generate correct shareable URLs.
+6. **Base URL Detection**: The application automatically detects the base URL from request headers (`x-forwarded-proto` and `host`) to generate correct shareable URLs. This works correctly in both development and production environments.
+
+7. **Persistence Layer**: Upstash Redis is used for persistence, with an in-memory fallback for local development when Redis credentials are not configured. This ensures the application works both locally and in production without requiring manual database setup.
+
+8. **Test Mode**: The application supports deterministic time testing via `TEST_MODE=1` environment variable and `x-test-now-ms` header. This allows automated tests to control time for TTL validation without waiting for actual expiration.
 
 ## Deployment
 

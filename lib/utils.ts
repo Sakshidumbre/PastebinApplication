@@ -26,6 +26,15 @@ export function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
+export function escapeHtmlForCode(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+  };
+  return text.replace(/[&<>]/g, (m) => map[m]);
+}
+
 export function getCurrentTime(testMode: boolean, testNowMs?: string): number {
   if (testMode && testNowMs) {
     const parsed = Number.parseInt(testNowMs, 10);
@@ -37,7 +46,7 @@ export function getCurrentTime(testMode: boolean, testNowMs?: string): number {
 }
 
 export function isPasteAvailable(
-  paste: { createdAt: number; ttlSeconds: number | null; maxViews: number | null; viewCount: number },
+  paste: { createdAt: number; ttlSeconds: number | null; maxViews: number | null; viewCount: number; burnAfterRead?: boolean },
   currentTime: number
 ): boolean {
   if (paste.ttlSeconds) {
@@ -51,6 +60,9 @@ export function isPasteAvailable(
     return false;
   }
 
+  if (paste.burnAfterRead && paste.viewCount >= 1) {
+    return false;
+  }
+
   return true;
 }
-

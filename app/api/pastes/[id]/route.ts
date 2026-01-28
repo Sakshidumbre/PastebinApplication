@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPaste, incrementViewCount } from '@/lib/kv';
 import { isPasteAvailable } from '@/lib/utils';
-import { getTestTime } from '@/lib/request-utils';
+import { getTestTime, getCurrentUser } from '@/lib/request-utils';
 import type { GetPasteResponse, ErrorResponse } from '@/lib/types';
 
 const NOT_FOUND_RESPONSE = NextResponse.json<ErrorResponse>(
@@ -31,9 +31,17 @@ export async function GET(
     const { id } = params;
     const currentTime = getTestTime(request);
     
-    const paste = await getPaste(id, currentTime);
+    // Parallelize independent operations
+    const [paste, userId] = await Promise.all([
+      getPaste(id, currentTime),
+      getCurrentUser(request)
+    ]);
 
     if (!paste) {
+      return NOT_FOUND_RESPONSE;
+    }
+
+    if (paste.privacy === 'private' && (!userId || paste.userId !== userId)) {
       return NOT_FOUND_RESPONSE;
     }
 
@@ -43,16 +51,19 @@ export async function GET(
 
     await incrementViewCount(id, currentTime);
 
+    // Fetch the updated paste to get the correct viewCount after incrementing
     const updatedPaste = await getPaste(id, currentTime);
     if (!updatedPaste) {
       return NOT_FOUND_RESPONSE;
     }
 
-    return NextResponse.json<GetPasteResponse>({
+    const response: GetPasteResponse = {
       content: updatedPaste.content,
       remaining_views: calculateRemainingViews(updatedPaste),
       expires_at: calculateExpiresAt(updatedPaste),
-    }, { status: 200 });
+    };
+    
+    return NextResponse.json<GetPasteResponse>(response, { status: 200 });
   } catch (error) {
     console.error('Error fetching paste:', error);
     return NextResponse.json<ErrorResponse>(
