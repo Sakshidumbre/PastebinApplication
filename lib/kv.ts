@@ -74,11 +74,8 @@ export async function getPaste(id: string, currentTime?: number): Promise<Paste 
   const redisInstance = getRedis();
   if (redisInstance && redisAvailable) {
     try {
-      const data = await redisInstance.get(key);
-      if (data === null) {
-        return null;
-      }
-      return typeof data === 'string' ? JSON.parse(data) : data;
+      const data = await redisInstance.get<Paste>(key);
+      return data;
     } catch (error) {
       console.error('Error fetching paste from Redis, falling back to memory:', error);
       redisAvailable = false;
@@ -108,9 +105,9 @@ export async function createPaste(paste: Paste, createdAt?: number): Promise<voi
   if (redisInstance && redisAvailable) {
     try {
       if (paste.ttlSeconds) {
-        await redisInstance.setex(key, paste.ttlSeconds, JSON.stringify(paste));
+        await redisInstance.setex(key, paste.ttlSeconds, paste);
       } else {
-        await redisInstance.set(key, JSON.stringify(paste));
+        await redisInstance.set(key, paste);
       }
       return;
     } catch (error) {
