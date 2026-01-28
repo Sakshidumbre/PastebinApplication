@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPaste, incrementViewCount } from '@/lib/kv';
 import { isPasteAvailable } from '@/lib/utils';
-import { getTestTime, getCurrentUser } from '@/lib/request-utils';
+import { getTestTime } from '@/lib/request-utils';
 import type { GetPasteResponse, ErrorResponse } from '@/lib/types';
 
 const NOT_FOUND_RESPONSE = NextResponse.json<ErrorResponse>(
@@ -31,17 +31,9 @@ export async function GET(
     const { id } = params;
     const currentTime = getTestTime(request);
     
-    // Parallelize independent operations
-    const [paste, userId] = await Promise.all([
-      getPaste(id, currentTime),
-      getCurrentUser(request)
-    ]);
+    const paste = await getPaste(id, currentTime);
 
     if (!paste) {
-      return NOT_FOUND_RESPONSE;
-    }
-
-    if (paste.privacy === 'private' && (!userId || paste.userId !== userId)) {
       return NOT_FOUND_RESPONSE;
     }
 

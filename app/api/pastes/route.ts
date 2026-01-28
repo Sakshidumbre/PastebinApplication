@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPaste } from '@/lib/kv';
 import { generateId } from '@/lib/utils';
 import { validateCreatePasteRequest, getTtlFromExpiration } from '@/lib/validation';
-import { getTestTime, getBaseUrl, getCurrentUser } from '@/lib/request-utils';
+import { getTestTime, getBaseUrl } from '@/lib/request-utils';
 import type { CreatePasteResponse, ErrorResponse } from '@/lib/types';
 
 export async function POST(request: NextRequest): Promise<NextResponse<CreatePasteResponse | ErrorResponse>> {
@@ -14,13 +14,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreatePas
       return validation.error!;
     }
 
-    const { content, ttl_seconds, max_views, title, syntax, expiration, burn_after_read, privacy } = body;
+    const { content, ttl_seconds, max_views, title, syntax, expiration, burn_after_read } = body;
     const currentTime = getTestTime(request);
-    const userId = await getCurrentUser(request);
 
     const ttlSeconds = getTtlFromExpiration(expiration, ttl_seconds);
     const maxViews = burn_after_read ? 1 : (max_views ?? null);
-    const pastePrivacy = privacy || 'public';
 
     const id = generateId();
     const paste = {
@@ -33,8 +31,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreatePas
       maxViews: maxViews,
       viewCount: 0,
       burnAfterRead: burn_after_read || false,
-      userId: userId || undefined,
-      privacy: pastePrivacy,
     };
 
     await createPaste(paste, currentTime);

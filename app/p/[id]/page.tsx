@@ -3,7 +3,6 @@ import { getPaste, incrementViewCount } from '@/lib/kv';
 import { isPasteAvailable, escapeHtml, escapeHtmlForCode } from '@/lib/utils';
 import { headers } from 'next/headers';
 import Script from 'next/script';
-import { getCurrentUserFromHeaders } from '@/lib/request-utils';
 import ShareInput from './share-input';
 import ExpirationHandler from './expiration-handler';
 import CopyContentButton from './copy-content-button';
@@ -55,21 +54,15 @@ export default async function PastePage({ params }: { params: { id: string } }) 
   const { id } = params;
   const currentTime = getTestTimeFromHeaders();
 
-  // Parallelize independent operations
-  const [paste, userId] = await Promise.all([
-    getPaste(id, currentTime),
-    getCurrentUserFromHeaders()
-  ]);
+  const paste = await getPaste(id, currentTime);
 
   if (!paste) {
-    notFound();
-  }
-
-  if (paste.privacy === 'private' && (!userId || paste.userId !== userId)) {
+    console.error(`Paste not found: ${id}`);
     notFound();
   }
 
   if (!isPasteAvailable(paste, currentTime)) {
+    console.error(`Paste not available: ${id}, viewCount: ${paste.viewCount}, maxViews: ${paste.maxViews}, burnAfterRead: ${paste.burnAfterRead}`);
     notFound();
   }
 
@@ -77,7 +70,10 @@ export default async function PastePage({ params }: { params: { id: string } }) 
 
   // Fetch the updated paste to get the correct viewCount after incrementing
   const updatedPaste = await getPaste(id, currentTime);
-  const displayPaste = updatedPaste ?? paste;
+  
+  // If updatedPaste is null (e.g., burnAfterRead was deleted), use original paste with incremented count
+  // This allows displaying the paste on the first view even if it's been deleted
+  const displayPaste = updatedPaste ?? { ...paste, viewCount: paste.viewCount + 1 };
 
   const syntaxClass = getSyntaxClass(displayPaste.syntax);
   const hasSyntax = !!displayPaste.syntax;
@@ -112,30 +108,48 @@ export default async function PastePage({ params }: { params: { id: string } }) 
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
         <div className="max-w-6xl mx-auto px-4">
           <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 text-white">
+            <div className={`bg-gradient-to-r from-blue-600 to-blue-700 px-6 text-white ${displayPaste.title ? 'py-4' : 'py-3'}`}>
               <div className="flex-1">
                 {displayPaste.title ? (
-                  <h1 className="text-2xl font-bold mb-2">{displayPaste.title}</h1>
+                  <>
+                    <h1 className="text-2xl font-bold mb-2">{displayPaste.title}</h1>
+                    <div className="flex flex-wrap gap-2 items-center text-sm text-blue-100">
+                      <span className="font-mono">ID: {id}</span>
+                      <span>•</span>
+                      <span>Created: {formatDate(displayPaste.createdAt)}</span>
+                      {displayPaste.syntax && (
+                        <>
+                          <span>•</span>
+                          <span className="px-2 py-1 bg-blue-500 rounded text-white">{displayPaste.syntax}</span>
+                        </>
+                      )}
+                      {displayPaste.burnAfterRead && (
+                        <>
+                          <span>•</span>
+                          <span className="px-2 py-1 bg-red-500 rounded">Burn after read</span>
+                        </>
+                      )}
+                    </div>
+                  </>
                 ) : (
-                  <h1 className="text-2xl font-bold mb-2">Untitled Paste</h1>
+                  <div className="flex flex-wrap gap-3 items-center">
+                    <span className="font-mono text-base font-semibold">ID: {id}</span>
+                    <span className="text-blue-200">•</span>
+                    <span className="text-sm">Created: {formatDate(displayPaste.createdAt)}</span>
+                    {displayPaste.syntax && (
+                      <>
+                        <span className="text-blue-200">•</span>
+                        <span className="px-2 py-1 bg-blue-500 rounded text-white text-sm">{displayPaste.syntax}</span>
+                      </>
+                    )}
+                    {displayPaste.burnAfterRead && (
+                      <>
+                        <span className="text-blue-200">•</span>
+                        <span className="px-2 py-1 bg-red-500 rounded text-sm">Burn after read</span>
+                      </>
+                    )}
+                  </div>
                 )}
-                <div className="flex flex-wrap gap-2 items-center text-sm text-blue-100">
-                  <span className="font-mono">ID: {id}</span>
-                  <span>•</span>
-                  <span>Created: {formatDate(displayPaste.createdAt)}</span>
-                  {displayPaste.syntax && (
-                    <>
-                      <span>•</span>
-                      <span className="px-2 py-1 bg-blue-500 rounded text-white">{displayPaste.syntax}</span>
-                    </>
-                  )}
-                  {displayPaste.burnAfterRead && (
-                    <>
-                      <span>•</span>
-                      <span className="px-2 py-1 bg-red-500 rounded">Burn after read</span>
-                    </>
-                  )}
-                </div>
               </div>
             </div>
 

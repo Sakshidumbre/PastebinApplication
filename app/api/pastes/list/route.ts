@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listPastes } from '@/lib/kv';
-import { getCurrentUser } from '@/lib/request-utils';
 import type { ListPastesResponse, ErrorResponse } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse<ListPastesResponse | ErrorResponse>> {
   try {
-    const userId = await getCurrentUser(request);
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    const pastes = await listPastes(userId || undefined, limit, offset);
+    const pastes = await listPastes(limit, offset);
 
     const formattedPastes = pastes.map(paste => ({
       id: paste.id,
@@ -20,7 +18,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<ListPastes
       syntax: paste.syntax,
       createdAt: paste.createdAt,
       viewCount: paste.viewCount,
-      privacy: paste.privacy,
       expires_at: paste.ttlSeconds 
         ? new Date(paste.createdAt + paste.ttlSeconds * 1000).toISOString()
         : null,

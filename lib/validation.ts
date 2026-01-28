@@ -14,7 +14,7 @@ const EXPIRATION_OPTIONS: Record<string, number> = {
 };
 
 export function validateCreatePasteRequest(body: any): { valid: boolean; error?: NextResponse<ErrorResponse> } {
-  const { content, ttl_seconds, expiration, max_views, title, syntax, burn_after_read, privacy } = body as CreatePasteRequest;
+  const { content, ttl_seconds, expiration, max_views, title, syntax, burn_after_read } = body as CreatePasteRequest;
 
   if (!content || typeof content !== 'string' || content.trim().length === 0) {
     return {
@@ -90,18 +90,6 @@ export function validateCreatePasteRequest(body: any): { valid: boolean; error?:
         { status: 400 }
       ),
     };
-  }
-
-  if (privacy !== undefined) {
-    if (!['public', 'unlisted', 'private'].includes(privacy)) {
-      return {
-        valid: false,
-        error: NextResponse.json(
-          { error: 'privacy must be one of: public, unlisted, private' },
-          { status: 400 }
-        ),
-      };
-    }
   }
 
   return { valid: true };

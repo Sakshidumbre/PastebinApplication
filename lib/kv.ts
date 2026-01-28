@@ -1,5 +1,4 @@
 import type { Paste } from './types';
-import { addPasteToUser } from './auth';
 
 const PREFIX = 'paste:';
 const PASTE_INDEX_PREFIX = 'paste_index:';
@@ -128,14 +127,7 @@ export async function createPaste(paste: Paste, createdAt?: number): Promise<voi
         await redisInstance.set(key, paste);
       }
       
-      if (paste.privacy === 'public' || paste.privacy === undefined) {
-        await redisInstance.zadd(`${PASTE_INDEX_PREFIX}public`, currentTime, paste.id);
-      }
-      
-      if (paste.userId) {
-        await addPasteToUser(paste.userId, paste.id);
-      }
-      
+      await redisInstance.zadd(`${PASTE_INDEX_PREFIX}public`, currentTime, paste.id);
       return;
     } catch (error) {
       console.error('Error creating paste in Redis, falling back to memory:', error);
@@ -148,9 +140,7 @@ export async function createPaste(paste: Paste, createdAt?: number): Promise<voi
     : undefined;
   
   memoryStore.set(key, { paste, expiresAt });
-  if (paste.privacy === 'public' || paste.privacy === undefined) {
-    memoryPasteIndex.add(paste.id);
-  }
+  memoryPasteIndex.add(paste.id);
 }
 
 export async function incrementViewCount(id: string, currentTime?: number): Promise<void> {
@@ -204,46 +194,27 @@ export async function incrementViewCount(id: string, currentTime?: number): Prom
   memoryStore.set(key, entry);
 }
 
-export async function listPastes(userId?: string, limit = 50, offset = 0): Promise<Paste[]> {
+export async function listPastes(limit = 50, offset = 0): Promise<Paste[]> {
   const redisInstance = await getRedis();
   const pastes: Paste[] = [];
   
   if (redisInstance && redisAvailable) {
     try {
-      if (userId) {
-        const pasteIds = await redisInstance.smembers(`user_pastes:${userId}`) as string[];
-        const pastePromises = pasteIds.slice(offset, offset + limit).map(async (id: string) => {
-          return await getPaste(id);
-        });
-        const results = await Promise.all(pastePromises);
-        return results.filter((p): p is Paste => p !== null);
-      } else {
-        const pasteIds = await redisInstance.zrevrange(`${PASTE_INDEX_PREFIX}public`, offset, offset + limit - 1) as string[];
-        const pastePromises = pasteIds.map(async (id: string) => {
-          return await getPaste(id);
-        });
-        const results = await Promise.all(pastePromises);
-        return results.filter((p): p is Paste => p !== null && (p.privacy === 'public' || p.privacy === undefined));
-      }
+      const pasteIds = await redisInstance.zrevrange(`${PASTE_INDEX_PREFIX}public`, offset, offset + limit - 1) as string[];
+      const pastePromises = pasteIds.map(async (id: string) => {
+        return await getPaste(id);
+      });
+      const results = await Promise.all(pastePromises);
+      return results.filter((p): p is Paste => p !== null);
     } catch (error) {
       console.error('Error listing pastes from Redis:', error);
       redisAvailable = false;
     }
   }
   
-  if (userId) {
-    const allPastes = Array.from(memoryStore.values())
-      .map(entry => entry.paste)
-      .filter(p => p.userId === userId)
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(offset, offset + limit);
-    return allPastes;
-  } else {
-    const allPastes = Array.from(memoryStore.values())
-      .map(entry => entry.paste)
-      .filter(p => p.privacy === 'public' || p.privacy === undefined)
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(offset, offset + limit);
-    return allPastes;
-  }
+  const allPastes = Array.from(memoryStore.values())
+    .map(entry => entry.paste)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(offset, offset + limit);
+  return allPastes;
 }

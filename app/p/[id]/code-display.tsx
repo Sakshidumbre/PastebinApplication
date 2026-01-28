@@ -37,3 +37,4 @@ export default function CodeDisplay({ content, syntax, syntaxClass, hasSyntax }:
   );
 }
 
+
