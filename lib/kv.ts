@@ -141,12 +141,12 @@ export async function incrementViewCount(id: string, currentTime?: number): Prom
         const elapsed = timeToUse - paste.createdAt;
         const remainingSeconds = Math.max(0, Math.floor((paste.ttlSeconds * 1000 - elapsed) / 1000));
         if (remainingSeconds > 0) {
-          await redisInstance.setex(key, remainingSeconds, JSON.stringify(paste));
+          await redisInstance.setex(key, remainingSeconds, paste);
         } else {
-          await redisInstance.set(key, JSON.stringify(paste));
+          await redisInstance.set(key, paste);
         }
       } else {
-        await redisInstance.set(key, JSON.stringify(paste));
+        await redisInstance.set(key, paste);
       }
       return;
     } catch (error) {
