@@ -18,11 +18,18 @@ function getRedis(): any {
   redisInitialized = true;
   
   try {
+    const { Redis } = require('@upstash/redis');
+    
     if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-      const { Redis } = require('@upstash/redis');
+      redis = Redis.fromEnv();
+      redisAvailable = true;
+      return redis;
+    }
+    
+    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
       redis = new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_TOKEN,
       });
       redisAvailable = true;
       return redis;
