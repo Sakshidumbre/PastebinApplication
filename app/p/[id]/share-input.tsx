@@ -18,12 +18,6 @@ export default function ShareInput({ url, title }: ShareInputProps) {
     }
   };
 
-  const shareToEmail = () => {
-    const subject = encodeURIComponent(`Check out this paste: ${title}`);
-    const body = encodeURIComponent(`I wanted to share this paste with you:\n\n${url}`);
-    window.open(`mailto:?subject=${subject}&body=${body}`);
-  };
-
   const shareToWhatsApp = () => {
     const text = encodeURIComponent(`Check out this paste: ${title}\n${url}`);
     window.open(`https://wa.me/?text=${text}`, '_blank');
@@ -42,16 +36,6 @@ export default function ShareInput({ url, title }: ShareInputProps) {
         />
       </div>
       <div className="flex gap-3 flex-wrap">
-        <button
-          onClick={shareToEmail}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors flex items-center gap-2 shadow-sm"
-          title="Share via Email"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
-          Email
-        </button>
         <button
           onClick={shareToWhatsApp}
           className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors flex items-center gap-2 shadow-sm"
