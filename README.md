@@ -16,7 +16,7 @@ A simple pastebin-like application where users can create text pastes and share 
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript
 - **Persistence**: Upstash Redis (serverless Redis)
-- **Deployment**: Vercel (recommended)
+- **Deployment**: Vercel
 
 ## Running Locally
 
@@ -143,19 +143,6 @@ x-test-now-ms: 1704067200000
 
 8. **Test Mode**: The application supports deterministic time testing via `TEST_MODE=1` environment variable and `x-test-now-ms` header. This allows automated tests to control time for TTL validation without waiting for actual expiration.
 
-## Deployment
 
-### Vercel
-
-1. Push your code to a Git repository (GitHub, GitLab, etc.)
-2. Import the project in Vercel
-3. Install Upstash Redis integration from Vercel Marketplace (environment variables will be added automatically)
-4. Deploy
-
-The application will automatically build and deploy.
-
-## License
-
-MIT
 
 
